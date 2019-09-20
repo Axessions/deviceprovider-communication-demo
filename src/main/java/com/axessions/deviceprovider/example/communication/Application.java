@@ -92,22 +92,24 @@ public class Application implements DeviceProviderListener {
     try {
       System.out.println(objectMapper.writeValueAsString(deviceChangedNotification));
 
-      if (deviceChangedNotification.getAction().equals(ChangeAction.CREATED)) {
+      if (deviceChangedNotification.getAction().equals(ChangeAction.CREATED) ||
+          deviceChangedNotification.getAction().equals(ChangeAction.UPDATED)) {
         var registration = new DeviceRegistrationRequest();
         registration.setPopularName("Endpoint c617b656-0b96-431a-9d12-6da52aa1d382");
-        registration.setAliasId("c617b656-0b96-431a-9d12-6da52aa1d382");
+        registration.setLittera("Endpoint c617b656-0b96-431a-9d12-6da52aa1d382");
+        registration.setAliasId(deviceChangedNotification.getAliasId());
 
         var source = new HashMap<String, String>();
         source.put("My key", "My value");
         registration.setSource(source);
 
         var actuator1 = new ActuatorCreateRequest();
-        actuator1.setPopularName("Actuator X");
+        actuator1.setPopularName("Actuator 1");
+        actuator1.setLittera("Actuator 1");
         actuator1.setAliasId("c617b656-0b96-431a-9d12-6da52aa1d382/actuator1");
         registration.setActuators(List.of(actuator1));
 
         client.registerDevice(registration);
-
       }
 
     } catch (JsonProcessingException | CommunicationException e) {
