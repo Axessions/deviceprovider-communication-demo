@@ -18,8 +18,8 @@ repositories {
 dependencies {
     implementation 'com.fasterxml.jackson.core:jackson-core:2.9.7'
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.9.7'
-    implementation 'com.axessions.deviceprovider:sdk:1.0-SNAPSHOT'
-//    implementation 'com.axessions.deviceprovider:sdk:0.1.2408.RELEASE'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.9.9'
+    implementation 'com.axessions.deviceprovider:sdk:0.1.3401.RELEASE'
     implementation 'com.axessions:crypto-java:0.1.2393'
     implementation "org.apache.activemq:activemq-client:5.15.9"
     testCompile group: 'junit', name: 'junit', version: '4.12'

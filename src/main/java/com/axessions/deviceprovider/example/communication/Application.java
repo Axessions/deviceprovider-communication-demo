@@ -15,6 +15,7 @@ import com.axessions.deviceprovider.dto.DeviceProviderChangedNotification;
 import com.axessions.deviceprovider.dto.DeviceRegistrationRequest;
 import com.axessions.deviceprovider.dto.DeviceRegistrationResponse;
 import com.axessions.deviceprovider.dto.edge.RecEdgeMessage;
+import com.axessions.deviceprovider.dto.edge.RecEdgeMessage.Format;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -23,16 +24,23 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
+import java.time.Clock;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class Application implements DeviceProviderListener {
 
   private ObjectMapper objectMapper;
 
   private DeviceProviderClient client;
+
+  private final ExecutorService executor = Executors.newCachedThreadPool();
+
 
   public static void main(String[] args) {
     var app = new Application();
@@ -56,11 +64,11 @@ public class Application implements DeviceProviderListener {
   }
 
   private DeviceProviderConfig getConfiguration() {
-    String vaultPassword = "123456";
+    var vaultPassword = System.getenv("VAULT_KEY");
     var axessionsConfiguration = getAxessionsConfiguration();
     var vaultStorageHandler = new MyVaultStorageHandler();
-    var configuration = new DeviceProviderConfig(vaultPassword, axessionsConfiguration,
-        vaultStorageHandler);
+    var configuration = new DeviceProviderConfig(axessionsConfiguration,
+        vaultStorageHandler, vaultPassword);
     return configuration;
   }
 
@@ -94,6 +102,9 @@ public class Application implements DeviceProviderListener {
 
       if (deviceChangedNotification.getAction().equals(ChangeAction.CREATED) ||
           deviceChangedNotification.getAction().equals(ChangeAction.UPDATED)) {
+
+        // Contact 3rd part API and claim device based on alias Id and/or source entries
+
         var registration = new DeviceRegistrationRequest();
         registration.setPopularName("Endpoint c617b656-0b96-431a-9d12-6da52aa1d382");
         registration.setLittera("Endpoint c617b656-0b96-431a-9d12-6da52aa1d382");
@@ -132,8 +143,55 @@ public class Application implements DeviceProviderListener {
     System.out.println("#onEdgeMessage");
     try {
       System.out.println(objectMapper.writeValueAsString(recEdgeMessage));
+
+      recEdgeMessage.getActuationCommands().forEach(actuationCommand -> {
+        executor.submit(() -> {
+          System.out
+              .println(
+                  actuationCommand.getActuatorId() + " : " + actuationCommand.getValueString());
+
+          sendActuationResponse(recEdgeMessage.getDeviceId(), actuationCommand.getActuatorId(),
+              actuationCommand.getActuationId(), "success");
+        });
+      });
+
     } catch (JsonProcessingException e) {
       e.printStackTrace();
+    }
+  }
+
+  private void sendActuationResponse(String deviceId, String actuatorId, String actuationId,
+      String responseCode) {
+    var response = new com.axessions.deviceprovider.dto.edge.ActuationResponse();
+    response.setActuatorId(actuatorId);
+    response.setActuationId(actuationId);
+    response.setResponseCode(responseCode);
+    response.setActuationResponseTime(Instant.now(Clock.systemUTC()));
+
+    var recEdgeMessage = new RecEdgeMessage(deviceId, Format.REC3_1);
+    recEdgeMessage.setActuationResponses(List.of(response));
+    try {
+      client.sendRecEdgeMessage(recEdgeMessage);
+    } catch (Exception ex) {
+      System.out.println("Could not send rec actuation response to rec service.");
+      ex.printStackTrace();
+    }
+  }
+
+  private void sendRecException(String origin, String id, String exception, int retries) {
+    var recException = new com.axessions.deviceprovider.dto.edge.Exception();
+    recException.setException(exception);
+    recException.setOrigin(origin);
+    recException.setExceptionTime(Instant.now(Clock.systemUTC()));
+    recException.setId(id);
+    recException.setRetry(retries);
+    var recEdgeMessage = new RecEdgeMessage(id, Format.REC3_1);
+    recEdgeMessage.setExceptions(List.of(recException));
+    try {
+      client.sendRecEdgeMessage(recEdgeMessage);
+    } catch (Exception ex) {
+      System.out.println("Could not send rec exception to rec service.");
+      ex.printStackTrace();
     }
   }
 
