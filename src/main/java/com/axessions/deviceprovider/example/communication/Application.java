@@ -54,7 +54,7 @@ public class Application implements DeviceProviderListener {
       objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
       objectMapper.setDateFormat(new SimpleDateFormat("yyyy-MM-dd'T'hh:mm:ss.SSSZ"));
 
-      var configuration = getConfiguration();
+      var configuration = getDeviceProviderConfiguration();
       client = new RemoteDeviceProviderClient();
       client.setListener(this);
       client.start(configuration);
@@ -63,13 +63,12 @@ public class Application implements DeviceProviderListener {
     }
   }
 
-  private DeviceProviderConfig getConfiguration() {
+  private DeviceProviderConfig getDeviceProviderConfiguration() {
     var vaultPassword = System.getenv("VAULT_PASS");
     var axessionsConfiguration = getAxessionsConfiguration();
     var vaultStorageHandler = new MyVaultStorageHandler();
-    var configuration = new DeviceProviderConfig(axessionsConfiguration,
+    return new DeviceProviderConfig(axessionsConfiguration,
         vaultStorageHandler, vaultPassword);
-    return configuration;
   }
 
   private AxessionsConfiguration getAxessionsConfiguration() {
