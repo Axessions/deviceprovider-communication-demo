@@ -140,23 +140,22 @@ public class Application implements DeviceProviderListener {
   @Override
   public void onEdgeMessage(RecEdgeMessage recEdgeMessage) {
     System.out.println("#onEdgeMessage");
-    try {
-      System.out.println(objectMapper.writeValueAsString(recEdgeMessage));
+    recEdgeMessage.getActuationCommands().forEach(actuationCommand -> {
+      executor.submit(() -> {
+        System.out.println(
+            actuationCommand.getActuatorId() + " : " + actuationCommand.getValueString());
+        try {
 
-      recEdgeMessage.getActuationCommands().forEach(actuationCommand -> {
-        executor.submit(() -> {
-          System.out
-              .println(
-                  actuationCommand.getActuatorId() + " : " + actuationCommand.getValueString());
+          // CALL DEVICE ACTUATOR
 
           sendActuationResponse(recEdgeMessage.getDeviceId(), actuationCommand.getActuatorId(),
               actuationCommand.getActuationId(), "success");
-        });
+        } catch (Exception e) {
+          sendRecException("actuator", actuationCommand.getActuatorId(),
+              "Could not call actuator.", 1);
+        }
       });
-
-    } catch (JsonProcessingException e) {
-      e.printStackTrace();
-    }
+    });
   }
 
   private void sendActuationResponse(String deviceId, String actuatorId, String actuationId,
@@ -174,6 +173,8 @@ public class Application implements DeviceProviderListener {
     } catch (Exception ex) {
       System.out.println("Could not send rec actuation response to rec service.");
       ex.printStackTrace();
+      sendRecException("actuator", actuatorId,
+          "Could not send rec actuation response to rec service.", 1);
     }
   }
 
