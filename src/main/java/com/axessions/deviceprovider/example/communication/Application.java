@@ -32,22 +32,24 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class Application implements DeviceProviderListener {
 
   private ObjectMapper objectMapper;
-
   private DeviceProviderClient client;
-
   private final ExecutorService executor = Executors.newCachedThreadPool();
-
+  private static final Logger logger = Logger.getAnonymousLogger();
 
   public static void main(String[] args) {
+
     var app = new Application();
     app.start();
   }
 
   private void start() {
+
     try {
       objectMapper = new ObjectMapper();
       objectMapper.registerModule(new JavaTimeModule());
@@ -59,11 +61,12 @@ public class Application implements DeviceProviderListener {
       client.setListener(this);
       client.start(configuration);
     } catch (DeviceProviderClientException e) {
-      e.printStackTrace();
+      logger.log(Level.SEVERE, "Couldn't start the device provider!", e);
     }
   }
 
   private DeviceProviderConfig getDeviceProviderConfiguration() {
+
     var vaultPassword = System.getenv("VAULT_PASS");
     var axessionsConfiguration = getAxessionsConfiguration();
     var vaultStorageHandler = new MyVaultStorageHandler();
@@ -77,27 +80,28 @@ public class Application implements DeviceProviderListener {
       var jsonFile = getClass().getClassLoader().getResource("axs.json");
       return objectMapper.readValue(jsonFile, AxessionsConfiguration.class);
     } catch (Exception e) {
-      e.printStackTrace();
+      logger.log(Level.SEVERE, "Couldn't load the configuration file (axs.json)!", e);
     }
     return null;
   }
 
   @Override
-  public void onDeviceProviderChanged(
-      DeviceProviderChangedNotification deviceProviderChangedNotification) {
-    System.out.println("#onDeviceProviderChanged");
+  public void onDeviceProviderChanged(DeviceProviderChangedNotification deviceProviderChangedNotification) {
+
+    logger.info("#onDeviceProviderChanged");
     try {
-      System.out.println(objectMapper.writeValueAsString(deviceProviderChangedNotification));
+      logger.info(objectMapper.writeValueAsString(deviceProviderChangedNotification));
     } catch (JsonProcessingException e) {
-      e.printStackTrace();
+      logger.log(Level.WARNING, "Couldn't convert the notification message from json to string", e);
     }
   }
 
   @Override
   public void onDeviceChanged(DeviceChangedNotification deviceChangedNotification) {
-    System.out.println("#onDeviceChanged");
+
+    logger.info("#onDeviceChanged");
     try {
-      System.out.println(objectMapper.writeValueAsString(deviceChangedNotification));
+      logger.info(objectMapper.writeValueAsString(deviceChangedNotification));
 
       if (deviceChangedNotification.getAction().equals(ChangeAction.CREATED) ||
           deviceChangedNotification.getAction().equals(ChangeAction.UPDATED)) {
@@ -123,43 +127,40 @@ public class Application implements DeviceProviderListener {
       }
 
     } catch (JsonProcessingException | CommunicationException e) {
-      e.printStackTrace();
+      logger.log(Level.SEVERE, "Couldn't process the device changed action!", e);
     }
   }
 
   @Override
   public void onDeviceRegistrationResponse(DeviceRegistrationResponse deviceRegistrationResponse) {
-    System.out.println("#onDeviceRegistrationResponse");
+
+    logger.info("#onDeviceRegistrationResponse");
     try {
-      System.out.println(objectMapper.writeValueAsString(deviceRegistrationResponse));
+      logger.info(objectMapper.writeValueAsString(deviceRegistrationResponse));
     } catch (JsonProcessingException e) {
-      e.printStackTrace();
+      logger.log(Level.SEVERE, "Couldn't handle the device registration response!", e);
     }
   }
 
   @Override
   public void onEdgeMessage(RecEdgeMessage recEdgeMessage) {
-    System.out.println("#onEdgeMessage");
+
+    logger.info("#onEdgeMessage");
     recEdgeMessage.getActuationCommands().forEach(actuationCommand -> {
       executor.submit(() -> {
-        System.out.println(
-            actuationCommand.getActuatorId() + " : " + actuationCommand.getValueString());
+        logger.info(actuationCommand.getActuatorId() + " : " + actuationCommand.getValueString());
         try {
-
           // CALL DEVICE ACTUATOR
-
-          sendActuationResponse(recEdgeMessage.getDeviceId(), actuationCommand.getActuatorId(),
-              actuationCommand.getActuationId(), "success");
+          sendActuationResponse(recEdgeMessage.getDeviceId(), actuationCommand.getActuatorId(), actuationCommand.getActuationId(), "success");
         } catch (Exception e) {
-          sendRecException("actuator", actuationCommand.getActuatorId(),
-              "Could not call actuator.", 1);
+          sendRecException("actuator", actuationCommand.getActuatorId(), "Could not call actuator.", 1);
         }
       });
     });
   }
 
-  private void sendActuationResponse(String deviceId, String actuatorId, String actuationId,
-      String responseCode) {
+  private void sendActuationResponse(String deviceId, String actuatorId, String actuationId, String responseCode) {
+
     var response = new com.axessions.deviceprovider.dto.edge.ActuationResponse();
     response.setActuatorId(actuatorId);
     response.setActuationId(actuationId);
@@ -171,14 +172,13 @@ public class Application implements DeviceProviderListener {
     try {
       client.sendRecEdgeMessage(recEdgeMessage);
     } catch (Exception ex) {
-      System.out.println("Could not send rec actuation response to rec service.");
-      ex.printStackTrace();
-      sendRecException("actuator", actuatorId,
-          "Could not send rec actuation response to rec service.", 1);
+      logger.log(Level.SEVERE, "Could not send rec actuation response to rec service.", ex);
+      sendRecException("actuator", actuatorId, "Could not send rec actuation response to rec service.", 1);
     }
   }
 
   private void sendRecException(String origin, String id, String exception, int retries) {
+
     var recException = new com.axessions.deviceprovider.dto.edge.Exception();
     recException.setException(exception);
     recException.setOrigin(origin);
@@ -190,8 +190,7 @@ public class Application implements DeviceProviderListener {
     try {
       client.sendRecEdgeMessage(recEdgeMessage);
     } catch (Exception ex) {
-      System.out.println("Could not send rec exception to rec service.");
-      ex.printStackTrace();
+      logger.log(Level.SEVERE, "\"Could not send rec exception to rec service.", ex);
     }
   }
 
@@ -199,29 +198,32 @@ public class Application implements DeviceProviderListener {
 
     @Override
     public Optional<byte[]> load(UUID uuid) {
+
       try {
         return Optional.of(Files.readAllBytes(Paths.get("./" + uuid.toString() + ".vault")));
       } catch (IOException e) {
-        e.printStackTrace();
+        logger.severe(e.getMessage());
       }
       return Optional.empty();
     }
 
     @Override
     public void save(UUID uuid, byte[] bytes) {
+
       try {
         Files.write(Paths.get("./" + uuid.toString() + ".vault"), bytes);
       } catch (IOException e) {
-        e.printStackTrace();
+        logger.severe(e.getMessage());
       }
     }
 
     @Override
     public void delete(UUID uuid) {
+
       try {
         Files.delete(Paths.get("./" + uuid.toString() + ".vault"));
       } catch (IOException e) {
-        e.printStackTrace();
+        logger.severe(e.getMessage());
       }
     }
   }
