@@ -16,7 +16,8 @@ repositories {
 }
 
 dependencies {
-    implementation 'com.axessions.deviceprovider:sdk:0.1.4099'
+    implementation 'com.axessions.deviceprovider:sdk:0.1.4115'
+    implementation 'org.slf4j:slf4j-simple:1.7.28'
 
     testCompile group: 'junit', name: 'junit', version: '4.12'
 }

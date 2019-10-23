@@ -70,8 +70,7 @@ public class Application implements DeviceProviderListener {
     var vaultPassword = System.getenv("VAULT_PASS");
     var axessionsConfiguration = getAxessionsConfiguration();
     var vaultStorageHandler = new MyVaultStorageHandler();
-    return new DeviceProviderConfig(axessionsConfiguration,
-        vaultStorageHandler, vaultPassword);
+    return new DeviceProviderConfig(axessionsConfiguration, vaultStorageHandler, vaultPassword);
   }
 
   private AxessionsConfiguration getAxessionsConfiguration() {
