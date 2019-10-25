@@ -12,6 +12,7 @@ import com.axessions.deviceprovider.dto.AxessionsConfiguration;
 import com.axessions.deviceprovider.dto.ChangeAction;
 import com.axessions.deviceprovider.dto.DeviceChangedNotification;
 import com.axessions.deviceprovider.dto.DeviceProviderChangedNotification;
+import com.axessions.deviceprovider.dto.DeviceProviderRegistrationResponse;
 import com.axessions.deviceprovider.dto.DeviceRegistrationRequest;
 import com.axessions.deviceprovider.dto.DeviceRegistrationResponse;
 import com.axessions.deviceprovider.dto.edge.RecEdgeMessage;
@@ -98,6 +99,7 @@ public class Application implements DeviceProviderListener {
   @Override
   public void onDeviceChanged(DeviceChangedNotification deviceChangedNotification) {
 
+    new DeviceProviderRegistrationResponse();
     logger.info("#onDeviceChanged");
     try {
       logger.info(objectMapper.writeValueAsString(deviceChangedNotification));
